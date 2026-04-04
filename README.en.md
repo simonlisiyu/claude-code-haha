@@ -21,7 +21,7 @@ A **locally runnable version** repaired from the leaked Claude Code source, with
 > The original leaked source does not run as-is. This repository fixes multiple blocking issues in the startup path so the full Ink TUI can work locally.
 
 <p align="center">
-  <a href="#features">Features</a> · <a href="#architecture-overview">Architecture</a> · <a href="#quick-start">Quick Start</a> · <a href="docs/guide/env-vars.en.md">Env Vars</a> · <a href="docs/guide/faq.en.md">FAQ</a> · <a href="docs/guide/global-usage.en.md">Global Usage</a> · <a href="#more-documentation">More Docs</a>
+  <a href="#features">Features</a> · <a href="#architecture-overview">Architecture</a> · <a href="#quick-start">Quick Start</a> · <a href="docs/guide/env-vars.en.md">Env Vars</a> · <a href="docs/guide/faq.en.md">FAQ</a> · <a href="docs/guide/global-usage.en.md">Global Usage</a> · <a href="docs/site/index.html">Homepage Preview</a> · <a href="#more-documentation">More Docs</a>
 </p>
 
 ---
@@ -106,7 +106,54 @@ bun --env-file=.env ./src/entrypoints/cli.tsx
 ./bin/claude-haha
 ```
 
-### 4. Global Usage (Optional)
+### 4. Offline Docker deployment (single container for LiteLLM + CLI)
+
+> Use this when you can build images on an internet-connected machine, but the target runtime environment is fully offline.
+
+1) Build and export image on an internet-connected machine:
+
+```bash
+docker build -t claude-haha-offline:1.0 .
+docker save -o claude-haha-offline-1.0.tar claude-haha-offline:1.0
+```
+
+2) Transfer `claude-haha-offline-1.0.tar` to the offline environment and load it:
+
+```bash
+docker load -i claude-haha-offline-1.0.tar
+```
+
+3) First copy the template to create your local config file:
+
+```bash
+cp litellm_config.example.yaml litellm_config.yaml
+```
+
+4) Run the container (`.env` and `litellm_config.yaml` are mounted from host, `OPENAI_API_KEY` is injected at runtime):
+
+```bash
+docker run --rm -it \
+  --name claude-haha \
+  -e OPENAI_API_KEY="sk-xxxx" \
+  -v "$PWD/.env:/app/.env:ro" \
+  -v "$PWD/litellm_config.yaml:/app/litellm_config.yaml:ro" \
+  -p 4000:4000 \
+  claude-haha-offline:1.0
+```
+
+5) If path conversion breaks mounts in Windows Git Bash, prepend:
+
+```bash
+MSYS_NO_PATHCONV=1 docker run ...
+```
+
+6) Ensure this is set in `.env`:
+
+```env
+ANTHROPIC_BASE_URL=http://localhost:4000
+```
+
+### 5. Global Usage (Optional)
 
 Add `bin/` to your PATH to run from any directory. See [Global Usage Guide](docs/guide/global-usage.en.md):
 

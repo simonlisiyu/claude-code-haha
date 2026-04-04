@@ -1,0 +1,16 @@
+services:
+  claude-haha:
+    image: claude-haha-offline:1.0
+    container_name: claude-haha
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      # Optional override, defaults to 4000 in entrypoint
+      LITELLM_PORT: ${LITELLM_PORT:-4000}
+    volumes:
+      - ./.env:/app/.env:ro
+      - ./litellm_config.yaml:/app/litellm_config.yaml:ro
+    ports:
+      - "4000:4000"

@@ -1,0 +1,19 @@
+# LiteLLM example config (safe to commit)
+# Copy this file to litellm_config.yaml and adjust models/providers for your environment.
+# Start command:
+#   litellm --config litellm_config.yaml --port 4000
+
+model_list:
+  - model_name: qwen3.5-plus
+    litellm_params:
+      model: openai/qwen3.5-plus
+      api_base: https://coding.dashscope.aliyuncs.com/v1
+      api_key: os.environ/DASHSCOPE_API_KEY
+
+  - model_name: gpt-4o
+    litellm_params:
+      model: openai/gpt-4o
+      api_key: os.environ/OPENAI_API_KEY
+
+litellm_settings:
+  drop_params: true

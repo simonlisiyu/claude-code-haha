@@ -3,6 +3,13 @@
 !.env.example
 node_modules
 
+# Local Claude/Serena workspace state
+.claude/
+.serena/
+
+# Local private LiteLLM config (use tracked example file)
+litellm_config.yaml
+
 # Computer Use runtime (auto-generated)
 .runtime/
 extracted-natives/

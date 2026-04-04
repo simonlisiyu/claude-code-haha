@@ -21,7 +21,7 @@
 > 原始泄露源码无法直接运行。本仓库修复了启动链路中的多个阻塞问题，使完整的 Ink TUI 交互界面可以在本地工作。
 
 <p align="center">
-  <a href="#功能">功能</a> · <a href="#架构概览">架构概览</a> · <a href="#快速开始">快速开始</a> · <a href="docs/guide/env-vars.md">环境变量</a> · <a href="docs/guide/faq.md">FAQ</a> · <a href="docs/guide/global-usage.md">全局使用</a> · <a href="#更多文档">更多文档</a>
+  <a href="#功能">功能</a> · <a href="#架构概览">架构概览</a> · <a href="#快速开始">快速开始</a> · <a href="docs/guide/env-vars.md">环境变量</a> · <a href="docs/guide/faq.md">FAQ</a> · <a href="docs/guide/global-usage.md">全局使用</a> · <a href="docs/site/index.html">首页预览</a> · <a href="#更多文档">更多文档</a>
 </p>
 
 ---
@@ -106,7 +106,54 @@ bun --env-file=.env ./src/entrypoints/cli.tsx
 ./bin/claude-haha
 ```
 
-### 4. 全局使用（可选）
+### 4. 离线环境 Docker 部署（单容器启动 LiteLLM + CLI）
+
+> 适用于：可在外网构建镜像，但目标运行环境完全离线。
+
+1) 外网构建并导出镜像：
+
+```bash
+docker build -t claude-haha-offline:1.0 .
+docker save -o claude-haha-offline-1.0.tar claude-haha-offline:1.0
+```
+
+2) 将 `claude-haha-offline-1.0.tar` 拷贝到内网/离线环境并导入：
+
+```bash
+docker load -i claude-haha-offline-1.0.tar
+```
+
+3) 先复制模板生成本地配置文件：
+
+```bash
+cp litellm_config.example.yaml litellm_config.yaml
+```
+
+4) 运行容器（`.env` 和 `litellm_config.yaml` 必须外部挂载，`OPENAI_API_KEY` 运行时注入）：
+
+```bash
+docker run --rm -it \
+  --name claude-haha \
+  -e OPENAI_API_KEY="sk-xxxx" \
+  -v "$PWD/.env:/app/.env:ro" \
+  -v "$PWD/litellm_config.yaml:/app/litellm_config.yaml:ro" \
+  -p 4000:4000 \
+  claude-haha-offline:1.0
+```
+
+5) Windows Git Bash 挂载路径异常时，可加：
+
+```bash
+MSYS_NO_PATHCONV=1 docker run ...
+```
+
+6) `.env` 中请确保：
+
+```env
+ANTHROPIC_BASE_URL=http://localhost:4000
+```
+
+### 5. 全局使用（可选）
 
 将 `bin/` 加入 PATH 后可在任意目录启动，详见 [全局使用指南](docs/guide/global-usage.md)：
 
