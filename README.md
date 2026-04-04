@@ -1,20 +1,4 @@
-# Claude Code Haha
-
-<p align="center">
-  <img src="docs/images/banner.jpg" alt="Claude Code Haha Banner" width="800">
-</p>
-
-<div align="center">
-
-[![GitHub Stars](https://img.shields.io/github/stars/NanmiCoder/cc-haha?style=social)](https://github.com/NanmiCoder/cc-haha/stargazers)
-[![GitHub Forks](https://img.shields.io/github/forks/NanmiCoder/cc-haha?style=social)](https://github.com/NanmiCoder/cc-haha/network/members)
-[![GitHub Issues](https://img.shields.io/github/issues/NanmiCoder/cc-haha)](https://github.com/NanmiCoder/cc-haha/issues)
-[![GitHub Pull Requests](https://img.shields.io/github/issues-pr/NanmiCoder/cc-haha)](https://github.com/NanmiCoder/cc-haha/pulls)
-[![License](https://img.shields.io/github/license/NanmiCoder/cc-haha)](https://github.com/NanmiCoder/cc-haha/blob/main/LICENSE)
-[![中文](https://img.shields.io/badge/🇨🇳_中文-当前-blue)](README.md)
-[![English](https://img.shields.io/badge/🇺🇸_English-Available-green)](README.en.md)
-
-</div>
+# Devi (Dev-cli)
 
 基于 Claude Code 泄露源码修复的**本地可运行版本**，支持接入任意 Anthropic 兼容 API（如 MiniMax、OpenRouter 等）。
 
@@ -61,66 +45,21 @@
 
 ## 快速开始
 
-### 1. 安装 Bun
-
-```bash
-# macOS / Linux
-curl -fsSL https://bun.sh/install | bash
-
-# macOS (Homebrew)
-brew install bun
-
-# Windows (PowerShell)
-powershell -c "irm bun.sh/install.ps1 | iex"
-```
-
-> 精简版 Linux 如提示 `unzip is required`，先运行 `apt update && apt install -y unzip`
-
-### 2. 安装依赖并配置
-
-```bash
-bun install
-cp .env.example .env
-# 编辑 .env 填入你的 API Key，详见 docs/guide/env-vars.md
-```
-
-### 3. 启动
-
-#### macOS / Linux
-
-```bash
-./bin/claude-haha                          # 交互 TUI 模式
-./bin/claude-haha -p "your prompt here"    # 无头模式
-./bin/claude-haha --help                   # 查看所有选项
-```
-
-#### Windows
-
-> **前置要求**：必须安装 [Git for Windows](https://git-scm.com/download/win)
-
-```powershell
-# PowerShell / cmd 直接调用 Bun
-bun --env-file=.env ./src/entrypoints/cli.tsx
-
-# 或在 Git Bash 中运行
-./bin/claude-haha
-```
-
-### 4. 离线环境 Docker 部署（单容器启动 LiteLLM + CLI）
+### 1. 离线环境 Docker 部署（单容器启动 LiteLLM + CLI）
 
 > 适用于：可在外网构建镜像，但目标运行环境完全离线。
 
 1) 外网构建并导出镜像：
 
 ```bash
-docker build -t claude-haha-offline:1.0 .
-docker save -o claude-haha-offline-1.0.tar claude-haha-offline:1.0
+docker build -t devi-offline:1.0 .
+docker save -o devi-offline-1.0.tar devi-offline:1.0
 ```
 
-2) 将 `claude-haha-offline-1.0.tar` 拷贝到内网/离线环境并导入：
+2) 将 `devi-offline-1.0.tar` 拷贝到内网/离线环境并导入：
 
 ```bash
-docker load -i claude-haha-offline-1.0.tar
+docker load -i devi-offline-1.0.tar
 ```
 
 3) 先复制模板生成本地配置文件：
@@ -138,7 +77,7 @@ docker run --rm -it \
   -v "$PWD/.env:/app/.env:ro" \
   -v "$PWD/litellm_config.yaml:/app/litellm_config.yaml:ro" \
   -p 4000:4000 \
-  claude-haha-offline:1.0
+  devi-offline:1.0
 ```
 
 5) Windows Git Bash 挂载路径异常时，可加：
