@@ -92,13 +92,6 @@ MSYS_NO_PATHCONV=1 docker run ...
 ANTHROPIC_BASE_URL=http://localhost:4000
 ```
 
-### 5. 全局使用（可选）
-
-将 `bin/` 加入 PATH 后可在任意目录启动，详见 [全局使用指南](docs/guide/global-usage.md)：
-
-```bash
-export PATH="$HOME/path/to/claude-code-haha/bin:$PATH"
-```
 
 ---
 
