@@ -146,8 +146,10 @@ docker stop devi-litellm && docker rm devi-litellm
 **交互 CLI 秒退时排查：**
 
 - **不要用** `docker run ... | tee`：管道会让 `stdout` 不是 TTY，应用会走无头模式并很快退出，看起来像「秒退」。
+- **Windows Git Bash / mintty**：即使用了 `-it`，也可能没有把真实 TTY 传进容器。若看到 `CLI mode requires an interactive TTY`，请改用 `winpty docker run -it ...`，或直接在 PowerShell / Windows Terminal 里运行同一条命令。
 - **`preload.ts` 与 `CALLER_DIR`**：若 `.env` 里写了 `CALLER_DIR` 且指向宿主机路径，在容器里 `chdir` 会失败或跳到错误目录。双容器 CLI 建议在 `.env` 中**删除或注释 `CALLER_DIR`**，由入口脚本与 `bin/claude-haha` 自动设置。
 - 入口在 `DEVI_CLI_ONLY=1` 时已改为 **`exec /app/bin/claude-haha`**（与本地 `./bin/claude-haha` 一致），请**重新构建镜像**后再试。
+- **Windows 构建 Linux 镜像时行尾**：`docker/entrypoint.sh` 与 `bin/claude-haha` 必须是 LF。仓库已通过 `.gitattributes` 约束；若你在旧工作区构建过镜像，请重新 checkout / rebuild，避免 CRLF 被打进镜像。
 
 6) Windows Git Bash 挂载路径异常时，可加：
 

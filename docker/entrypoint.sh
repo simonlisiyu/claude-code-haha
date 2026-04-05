@@ -22,6 +22,12 @@ if [[ "${DEVI_CLI_ONLY:-}" == "1" ]]; then
   fi
   # preload.ts: if CALLER_DIR is set, chdir there — must be the mounted workspace.
   # Use bin/claude-haha (same as local): it sets CALLER_DIR from pwd before cd /app + bun.
+  if [[ "$#" -eq 0 ]] && [[ ! -t 0 || ! -t 1 ]]; then
+    log "[error] CLI mode requires an interactive TTY, but stdin/stdout is not a TTY."
+    log "[hint] Use 'docker run -it', do not pipe output (for example '| tee'), and on Windows Git Bash try 'winpty docker run -it ...'."
+    log "[hint] If you want headless mode, pass '-p <prompt>' or '--print <prompt>'."
+    exit 1
+  fi
   export TERM="${TERM:-xterm-256color}"
   export CALLER_DIR="$(pwd)"
   log "DEVI_CLI_ONLY=1: claude-haha, CALLER_DIR=$CALLER_DIR"
