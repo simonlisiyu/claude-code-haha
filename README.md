@@ -69,7 +69,9 @@ cp .env.example .env
 cp litellm_config.example.yaml litellm_config.yaml
 ```
 
-4) 运行容器（`.env` 和 `litellm_config.yaml` 必须外部挂载，`OPENAI_API_KEY` 运行时注入）：
+4) 运行容器（`.env` 和 `litellm_config.yaml` 必须外部挂载，`OPENAI_API_KEY` 按 `litellm_config.yaml` 里路由注入，如 `OPENAI_API_KEY`、`DASHSCOPE_API_KEY` 等）：
+
+**单容器：LiteLLM + 交互 CLI（同一终端）**
 
 ```bash
 docker run --rm -it \
@@ -81,10 +83,10 @@ docker run --rm -it \
   devi-offline:1.0
 ```
 
-**仅跑 LiteLLM 代理（不启动容器内 CLI）**：默认入口会先起 LiteLLM 再起 `bun` 交互界面；若 bun 立刻退出，容器会一起结束，`docker logs` 可能几乎无输出。只要代理时可设：
+**仅 LiteLLM 代理（只占 4000，无 bun CLI）**
 
 ```bash
-docker run --rm --name devi \
+docker run --rm --name devi-litellm \
   -e DEVI_PROXY_ONLY=1 \
   -e OPENAI_API_KEY="sk-xxxx" \
   -v "$PWD/.env:/app/.env:ro" \
@@ -93,13 +95,61 @@ docker run --rm --name devi \
   devi-offline:1.0
 ```
 
-5) Windows Git Bash 挂载路径异常时，可加：
+5) **双容器：一个跑 LiteLLM，一个跑交互 CLI + 挂载你的代码目录**
+
+在同一台 Docker 主机上建网络，代理容器固定名字，CLI 容器通过 **容器名** 访问 `4000`（无需再映射 CLI 的端口）。
+
+```bash
+# 0. 准备配置（若尚未生成）
+cp .env.example .env
+cp litellm_config.example.yaml litellm_config.yaml
+# 编辑 .env / litellm_config.yaml，保证模型名与下文 -e ANTHROPIC_MODEL 一致
+
+# 1. 用户自定义网络
+docker network create devi-net 2>/dev/null || true
+
+# 2. 终端 A：启动 LiteLLM（后台常驻，宿主机 4000 可访问）
+docker run -d --name devi-litellm --network devi-net \
+  -e DEVI_PROXY_ONLY=1 \
+  -e OPENAI_API_KEY="sk-xxxx" \
+  -v "$PWD/.env:/app/.env:ro" \
+  -v "$PWD/litellm_config.yaml:/app/litellm_config.yaml:ro" \
+  -p 4000:4000 \
+  --restart unless-stopped \
+  devi-offline:1.0
+
+# 3. 可选：健康检查
+curl -sS http://127.0.0.1:4000/health/liveliness || curl -sS -o /dev/null -w "%{http_code}\n" http://127.0.0.1:4000/
+
+# 4. 终端 B：只启动 CLI，挂载你的项目目录；API 指向同一网络内的代理
+#    必须 --network devi-net，且用容器名 devi-litellm（不要用 localhost，那是 CLI 容器自己）
+#    ANTHROPIC_MODEL 与 litellm_config.yaml 里 model_name 一致
+docker run --rm -it --name devi-cli --network devi-net \
+  -e DEVI_CLI_ONLY=1 \
+  -e DEVI_WORKDIR=/workspace \
+  -e ANTHROPIC_BASE_URL=http://devi-litellm:4000 \
+  -e ANTHROPIC_AUTH_TOKEN=sk-anything \
+  -e ANTHROPIC_MODEL=qwen3.5-plus \
+  -e ANTHROPIC_DEFAULT_SONNET_MODEL=qwen3.5-plus \
+  -e ANTHROPIC_DEFAULT_HAIKU_MODEL=qwen3.5-plus \
+  -e ANTHROPIC_DEFAULT_OPUS_MODEL=qwen3.5-plus \
+  -v "$PWD/.env:/app/.env:ro" \
+  -v "/path/to/your/project:/workspace:rw" \
+  devi-offline:1.0
+
+# 5. 用完后停止代理（CLI 容器退出后 --rm 已删除）
+docker stop devi-litellm && docker rm devi-litellm
+```
+
+说明：`docker run -e ANTHROPIC_BASE_URL=...` 会覆盖 `.env` 里同名的 `localhost` 配置，使 CLI 走 `http://devi-litellm:4000`。若你改用其它模型名，请同步修改各 `ANTHROPIC_*_MODEL` 与 `litellm_config.yaml`。
+
+6) Windows Git Bash 挂载路径异常时，可加：
 
 ```bash
 MSYS_NO_PATHCONV=1 docker run ...
 ```
 
-6) `.env` 中请确保：
+7) **单容器**（LiteLLM 与 CLI 同进程空间）时 `.env` 中请使用：
 
 ```env
 ANTHROPIC_BASE_URL=http://localhost:4000

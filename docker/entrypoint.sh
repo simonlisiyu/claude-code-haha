@@ -12,6 +12,18 @@ if [[ ! -f "/app/.env" ]]; then
   exit 1
 fi
 
+if [[ "${DEVI_CLI_ONLY:-}" == "1" ]]; then
+  if [[ -n "${DEVI_WORKDIR:-}" ]]; then
+    if [[ ! -d "$DEVI_WORKDIR" ]]; then
+      log "[error] DEVI_WORKDIR is not a directory: $DEVI_WORKDIR"
+      exit 1
+    fi
+    cd "$DEVI_WORKDIR" || exit 1
+  fi
+  log "DEVI_CLI_ONLY=1: bun CLI only, cwd=$(pwd)"
+  exec bun --env-file=/app/.env /app/src/entrypoints/cli.tsx "$@"
+fi
+
 if [[ ! -f "/app/litellm_config.yaml" ]]; then
   log "[error] /app/litellm_config.yaml not found. Please mount it with -v <host>/litellm_config.yaml:/app/litellm_config.yaml:ro"
   exit 1
