@@ -1,4 +1,4 @@
-FROM oven/bun:1-debian
+FROM oven/bun:1.3.10-debian
 
 WORKDIR /app
 
@@ -10,7 +10,8 @@ RUN apt-get update \
 ENV PATH="/opt/venv/bin:$PATH"
 
 COPY package.json bun.lock ./
-RUN bun install --frozen-lockfile
+RUN bun install --frozen-lockfile \
+  && bun -e "import Anthropic from '@anthropic-ai/sdk'; console.log('sdk-ok')"
 
 COPY . .
 
