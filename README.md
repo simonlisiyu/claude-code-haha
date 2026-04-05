@@ -65,6 +65,7 @@ docker load -i devi-offline-1.0.tar
 3) 先复制模板生成本地配置文件：
 
 ```bash
+cp .env.example .env
 cp litellm_config.example.yaml litellm_config.yaml
 ```
 
@@ -72,7 +73,19 @@ cp litellm_config.example.yaml litellm_config.yaml
 
 ```bash
 docker run --rm -it \
-  --name claude-haha \
+  --name devi \
+  -e OPENAI_API_KEY="sk-xxxx" \
+  -v "$PWD/.env:/app/.env:ro" \
+  -v "$PWD/litellm_config.yaml:/app/litellm_config.yaml:ro" \
+  -p 4000:4000 \
+  devi-offline:1.0
+```
+
+**仅跑 LiteLLM 代理（不启动容器内 CLI）**：默认入口会先起 LiteLLM 再起 `bun` 交互界面；若 bun 立刻退出，容器会一起结束，`docker logs` 可能几乎无输出。只要代理时可设：
+
+```bash
+docker run --rm --name devi \
+  -e DEVI_PROXY_ONLY=1 \
   -e OPENAI_API_KEY="sk-xxxx" \
   -v "$PWD/.env:/app/.env:ro" \
   -v "$PWD/litellm_config.yaml:/app/litellm_config.yaml:ro" \

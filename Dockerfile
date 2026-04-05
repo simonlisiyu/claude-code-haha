@@ -3,9 +3,11 @@ FROM oven/bun:1-debian
 WORKDIR /app
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends python3 python3-pip tini \
-  && python3 -m pip install --no-cache-dir "litellm[proxy]" \
+  && apt-get install -y --no-install-recommends python3 python3-venv tini \
+  && python3 -m venv /opt/venv \
+  && /opt/venv/bin/pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple "litellm[proxy]" \
   && rm -rf /var/lib/apt/lists/*
+ENV PATH="/opt/venv/bin:$PATH"
 
 COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile

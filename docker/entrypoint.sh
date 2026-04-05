@@ -1,16 +1,25 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+log() {
+  echo "[devi] $*" >&2
+}
+
 cd /app
 
 if [[ ! -f "/app/.env" ]]; then
-  echo "[error] /app/.env not found. Please mount it with -v <host>/.env:/app/.env:ro"
+  log "[error] /app/.env not found. Please mount it with -v <host>/.env:/app/.env:ro"
   exit 1
 fi
 
 if [[ ! -f "/app/litellm_config.yaml" ]]; then
-  echo "[error] /app/litellm_config.yaml not found. Please mount it with -v <host>/litellm_config.yaml:/app/litellm_config.yaml:ro"
+  log "[error] /app/litellm_config.yaml not found. Please mount it with -v <host>/litellm_config.yaml:/app/litellm_config.yaml:ro"
   exit 1
+fi
+
+if [[ "${DEVI_PROXY_ONLY:-}" == "1" ]]; then
+  log "DEVI_PROXY_ONLY=1: litellm only (foreground), port ${LITELLM_PORT:-4000}"
+  exec litellm --config /app/litellm_config.yaml --port "${LITELLM_PORT:-4000}"
 fi
 
 cleanup() {
@@ -22,12 +31,16 @@ cleanup() {
 
 trap cleanup EXIT SIGINT SIGTERM
 
+log "starting litellm (background), port ${LITELLM_PORT:-4000}"
 litellm --config /app/litellm_config.yaml --port "${LITELLM_PORT:-4000}" &
 LITELLM_PID=$!
+log "litellm pid=$LITELLM_PID"
 
 # Keep existing startup behavior while loading mounted env file.
+log "starting bun CLI (./src/entrypoints/cli.tsx) …"
 if ! bun --env-file=/app/.env ./src/entrypoints/cli.tsx "$@"; then
   EXIT_CODE=$?
+  log "bun CLI exited with code $EXIT_CODE"
   cleanup
   exit "$EXIT_CODE"
 fi
