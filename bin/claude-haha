@@ -5,12 +5,32 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # Preserve the caller workspace so preload.ts can chdir back before app startup.
 export CALLER_DIR="$(pwd -W 2>/dev/null || pwd)"
 
+check_linux_kernel_support() {
+  if [[ "$(uname -s 2>/dev/null || true)" != "Linux" ]]; then
+    return 0
+  fi
+
+  local kernel major minor
+  kernel="$(uname -r 2>/dev/null || true)"
+  if [[ "$kernel" =~ ^([0-9]+)\.([0-9]+) ]]; then
+    major="${BASH_REMATCH[1]}"
+    minor="${BASH_REMATCH[2]}"
+    if (( major < 5 || (major == 5 && minor < 1) )); then
+      echo "[devi] [error] Host Linux kernel $kernel is below Bun's minimum supported version 5.1." >&2
+      echo "[devi] [hint] Docker shares the host kernel. On CentOS 7 / kernel 3.10, Bun may print a version but fail to execute project scripts reliably." >&2
+      echo "[devi] [hint] Run this image on a host with kernel >= 5.1 (recommended >= 5.6)." >&2
+      exit 1
+    fi
+  fi
+}
+
 cd "$ROOT_DIR"
+check_linux_kernel_support
 
 # Force recovery CLI (simple readline REPL, no Ink TUI)
 if [[ "${CLAUDE_CODE_FORCE_RECOVERY_CLI:-0}" == "1" ]]; then
-  exec bun --env-file=.env ./src/localRecoveryCli.ts "$@"
+  exec bun --config ./runtime/bun.empty.toml --env-file=.env ./src/entrypoints/localRecoveryCli.bootstrap.ts "$@"
 fi
 
 # Default: full CLI with Ink TUI
-exec bun --env-file=.env ./src/entrypoints/cli.tsx "$@"
+exec bun --config ./runtime/bun.empty.toml --env-file=.env ./src/entrypoints/cli.bootstrap.ts "$@"

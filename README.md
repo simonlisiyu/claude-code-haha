@@ -48,6 +48,8 @@
 ### 1. 离线环境 Docker 部署（单容器启动 LiteLLM + CLI）
 
 > 适用于：可在外网构建镜像，但目标运行环境完全离线。
+>
+> 前置要求：交互 CLI 依赖 Bun；Bun 在 Linux 上要求宿主机内核 **>= 5.1**，建议 **>= 5.6**。Docker 共享宿主机内核，因此若目标机器仍是 CentOS 7 / `3.10.x` 内核，通常只能稳定运行 LiteLLM，CLI 会出现“直接退出”或脚本无法执行的问题。详见 Bun 官方安装说明：https://bun.com/docs/installation
 
 1) 外网构建并导出镜像：
 
@@ -145,6 +147,7 @@ docker stop devi-litellm && docker rm devi-litellm
 
 **交互 CLI 秒退时排查：**
 
+- **先看宿主机内核**：CLI 运行时是 Bun，Linux 宿主机内核需 **>= 5.1**，建议 **>= 5.6**。例如 CentOS 7 默认 `3.10.x` 内核即使 `docker run -it`、网络、`.env` 全部正确，CLI 也可能直接退出；这种情况需要升级宿主机内核或将 CLI 放到更新的 Linux 主机运行。LiteLLM 不受此限制。
 - **不要用** `docker run ... | tee`：管道会让 `stdout` 不是 TTY，应用会走无头模式并很快退出，看起来像「秒退」。
 - **Windows Git Bash / mintty**：即使用了 `-it`，也可能没有把真实 TTY 传进容器。若看到 `CLI mode requires an interactive TTY`，请改用 `winpty docker run -it ...`，或直接在 PowerShell / Windows Terminal 里运行同一条命令。
 - **`preload.ts` 与 `CALLER_DIR`**：若 `.env` 里写了 `CALLER_DIR` 且指向宿主机路径，在容器里 `chdir` 会失败或跳到错误目录。双容器 CLI 建议在 `.env` 中**删除或注释 `CALLER_DIR`**，由入口脚本与 `bin/claude-haha` 自动设置。
