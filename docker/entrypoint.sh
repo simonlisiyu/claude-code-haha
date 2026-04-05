@@ -20,8 +20,12 @@ if [[ "${DEVI_CLI_ONLY:-}" == "1" ]]; then
     fi
     cd "$DEVI_WORKDIR" || exit 1
   fi
-  log "DEVI_CLI_ONLY=1: bun CLI only, cwd=$(pwd)"
-  exec bun --env-file=/app/.env /app/src/entrypoints/cli.tsx "$@"
+  # preload.ts: if CALLER_DIR is set, chdir there — must be the mounted workspace.
+  # Use bin/claude-haha (same as local): it sets CALLER_DIR from pwd before cd /app + bun.
+  export TERM="${TERM:-xterm-256color}"
+  export CALLER_DIR="$(pwd)"
+  log "DEVI_CLI_ONLY=1: claude-haha, CALLER_DIR=$CALLER_DIR"
+  exec /app/bin/claude-haha "$@"
 fi
 
 if [[ ! -f "/app/litellm_config.yaml" ]]; then
@@ -48,11 +52,11 @@ litellm --config /app/litellm_config.yaml --port "${LITELLM_PORT:-4000}" &
 LITELLM_PID=$!
 log "litellm pid=$LITELLM_PID"
 
-# Keep existing startup behavior while loading mounted env file.
-log "starting bun CLI (./src/entrypoints/cli.tsx) …"
-if ! bun --env-file=/app/.env ./src/entrypoints/cli.tsx "$@"; then
+# Same as local dev: claude-haha sets CALLER_DIR then runs bun from /app.
+log "starting claude-haha (Ink CLI) …"
+if ! /app/bin/claude-haha "$@"; then
   EXIT_CODE=$?
-  log "bun CLI exited with code $EXIT_CODE"
+  log "CLI exited with code $EXIT_CODE"
   cleanup
   exit "$EXIT_CODE"
 fi

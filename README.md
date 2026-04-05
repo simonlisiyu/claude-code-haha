@@ -143,6 +143,12 @@ docker stop devi-litellm && docker rm devi-litellm
 
 说明：`docker run -e ANTHROPIC_BASE_URL=...` 会覆盖 `.env` 里同名的 `localhost` 配置，使 CLI 走 `http://devi-litellm:4000`。若你改用其它模型名，请同步修改各 `ANTHROPIC_*_MODEL` 与 `litellm_config.yaml`。
 
+**交互 CLI 秒退时排查：**
+
+- **不要用** `docker run ... | tee`：管道会让 `stdout` 不是 TTY，应用会走无头模式并很快退出，看起来像「秒退」。
+- **`preload.ts` 与 `CALLER_DIR`**：若 `.env` 里写了 `CALLER_DIR` 且指向宿主机路径，在容器里 `chdir` 会失败或跳到错误目录。双容器 CLI 建议在 `.env` 中**删除或注释 `CALLER_DIR`**，由入口脚本与 `bin/claude-haha` 自动设置。
+- 入口在 `DEVI_CLI_ONLY=1` 时已改为 **`exec /app/bin/claude-haha`**（与本地 `./bin/claude-haha` 一致），请**重新构建镜像**后再试。
+
 6) Windows Git Bash 挂载路径异常时，可加：
 
 ```bash
