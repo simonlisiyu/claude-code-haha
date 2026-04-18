@@ -20,7 +20,7 @@ claude-code-haha ──Anthropic协议──▶ LiteLLM Proxy ──OpenAI协议
 ### 1. 安装 LiteLLM
 
 ```bash
-pip install 'litellm[proxy]'
+pip install 'litellm[proxy]==1.83.8'
 ```
 
 ### 2. 创建配置文件

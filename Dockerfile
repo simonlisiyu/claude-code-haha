@@ -5,7 +5,7 @@ WORKDIR /app
 RUN apt-get update \
   && apt-get install -y --no-install-recommends python3 python3-venv tini \
   && python3 -m venv /opt/venv \
-  && /opt/venv/bin/pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple "litellm[proxy]" \
+  && /opt/venv/bin/pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple "litellm[proxy]==1.83.8" \
   && rm -rf /var/lib/apt/lists/*
 ENV PATH="/opt/venv/bin:$PATH"
 

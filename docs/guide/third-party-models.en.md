@@ -20,7 +20,7 @@ This project sends Anthropic Messages API requests. The LiteLLM proxy automatica
 ### 1. Install LiteLLM
 
 ```bash
-pip install 'litellm[proxy]'
+pip install 'litellm[proxy]==1.83.8'
 ```
 
 ### 2. Create Configuration File

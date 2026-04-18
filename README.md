@@ -45,11 +45,13 @@
 
 ## 快速开始
 
-### 1. 离线环境 Docker 部署（单容器启动 LiteLLM + CLI）
+### 1. 离线环境 Docker 部署（LiteLLM 后台 + `docker exec` 启动 CLI）
 
 > 适用于：可在外网构建镜像，但目标运行环境完全离线。
 >
 > 前置要求：交互 CLI 依赖 Bun；Bun 在 Linux 上要求宿主机内核 **>= 5.1**，建议 **>= 5.6**。Docker 共享宿主机内核，因此若目标机器仍是 CentOS 7 / `3.10.x` 内核，通常只能稳定运行 LiteLLM，CLI 会出现“直接退出”或脚本无法执行的问题。详见 Bun 官方安装说明：https://bun.com/docs/installation
+>
+> **仅持有镜像 tar、在内网导入部署**的逐步说明（含从镜像抽取配置模板、三种运行模式）：见 [docs/guide/docker-offline-deploy.md](docs/guide/docker-offline-deploy.md)。
 
 1) 外网构建并导出镜像：
 
@@ -71,99 +73,74 @@ cp .env.example .env
 cp litellm_config.example.yaml litellm_config.yaml
 ```
 
-4) 运行容器（`.env` 和 `litellm_config.yaml` 必须外部挂载，`OPENAI_API_KEY` 按 `litellm_config.yaml` 里路由注入，如 `OPENAI_API_KEY`、`DASHSCOPE_API_KEY` 等）：
+4) 启动 LiteLLM 容器（`.env`、`litellm_config.yaml` 必须挂载；`OPENAI_API_KEY` 等按 `litellm_config.yaml` 里 `os.environ/...` 用 `-e` 注入）。
 
-**单容器：LiteLLM + 交互 CLI（同一终端）**
-
-```bash
-docker run --rm -it \
-  --name devi \
-  -e OPENAI_API_KEY="sk-xxxx" \
-  -v "$PWD/.env:/app/.env:ro" \
-  -v "$PWD/litellm_config.yaml:/app/litellm_config.yaml:ro" \
-  -p 4000:4000 \
-  devi-offline:1.0
-```
-
-**仅 LiteLLM 代理（只占 4000，无 bun CLI）**
+在同一台主机上创建网络并以后台方式启动（**只跑 LiteLLM**，宿主机 `4000` 可访问）。可选把业务代码挂到容器内 `/workspace`：
 
 ```bash
-docker run --rm --name devi-litellm \
-  -e DEVI_PROXY_ONLY=1 \
-  -e OPENAI_API_KEY="sk-xxxx" \
-  -v "$PWD/.env:/app/.env:ro" \
-  -v "$PWD/litellm_config.yaml:/app/litellm_config.yaml:ro" \
-  -p 4000:4000 \
-  devi-offline:1.0
-```
-
-5) **双容器：一个跑 LiteLLM，一个跑交互 CLI + 挂载你的代码目录**
-
-在同一台 Docker 主机上建网络，代理容器固定名字，CLI 容器通过 **容器名** 访问 `4000`（无需再映射 CLI 的端口）。
-
-```bash
-# 0. 准备配置（若尚未生成）
-cp .env.example .env
-cp litellm_config.example.yaml litellm_config.yaml
-# 编辑 .env / litellm_config.yaml，保证模型名与下文 -e ANTHROPIC_MODEL 一致
-
-# 1. 用户自定义网络
 docker network create devi-net 2>/dev/null || true
 
-# 2. 终端 A：启动 LiteLLM（后台常驻，宿主机 4000 可访问）
 docker run -d --name devi-litellm --network devi-net \
   -e DEVI_PROXY_ONLY=1 \
   -e OPENAI_API_KEY="sk-xxxx" \
   -v "$PWD/.env:/app/.env:ro" \
   -v "$PWD/litellm_config.yaml:/app/litellm_config.yaml:ro" \
+  -v "/path/to/your/project:/workspace:rw" \
   -p 4000:4000 \
   --restart unless-stopped \
   devi-offline:1.0
+```
 
-# 3. 可选：健康检查
-curl -sS http://127.0.0.1:4000/health/liveliness || curl -sS -o /dev/null -w "%{http_code}\n" http://127.0.0.1:4000/
+不需要单独挂代码目录时，可去掉 `-v "/path/to/your/project:/workspace:rw"` 这一行。
 
-# 4. 终端 B：只启动 CLI，挂载你的项目目录；API 指向同一网络内的代理
-#    必须 --network devi-net，且用容器名 devi-litellm（不要用 localhost，那是 CLI 容器自己）
-#    ANTHROPIC_MODEL 与 litellm_config.yaml 里 model_name 一致
-docker run --rm -it --name devi-cli --network devi-net \
-  -e DEVI_CLI_ONLY=1 \
-  -e DEVI_WORKDIR=/workspace \
-  -e ANTHROPIC_BASE_URL=http://devi-litellm:4000 \
-  -e ANTHROPIC_AUTH_TOKEN=sk-anything \
-  -e ANTHROPIC_MODEL=qwen3.5-plus \
-  -e ANTHROPIC_DEFAULT_SONNET_MODEL=qwen3.5-plus \
-  -e ANTHROPIC_DEFAULT_HAIKU_MODEL=qwen3.5-plus \
-  -e ANTHROPIC_DEFAULT_OPUS_MODEL=qwen3.5-plus \
-  -v "$PWD/.env:/app/.env:ro" \
-  -v "/path/to/your/project:/workspace:rw" \
-  devi-offline:1.0
+可选健康检查：
 
-# 5. 用完后停止代理（CLI 容器退出后 --rm 已删除）
+```bash
+curl -sS http://127.0.0.1:4000/health/liveliness
+```
+
+**进入同一容器启动交互 CLI**（LiteLLM 已在容器内监听 `4000`，`.env` 里 `ANTHROPIC_BASE_URL` 请使用 **`http://127.0.0.1:4000`**）：
+
+```bash
+docker exec -it devi-litellm bash
+cd /app
+bun --env-file=.env ./src/entrypoints/cli.tsx
+```
+
+若 CLI 要在挂载的业务目录下工作，进入容器后：
+
+```bash
+cd /workspace
+bun --env-file=/app/.env /app/src/entrypoints/cli.tsx
+```
+
+（使用绝对路径指向镜像内入口，避免相对路径 `./src` 找不到。）
+
+用完后停止并删除容器：
+
+```bash
 docker stop devi-litellm && docker rm devi-litellm
 ```
 
-说明：`docker run -e ANTHROPIC_BASE_URL=...` 会覆盖 `.env` 里同名的 `localhost` 配置，使 CLI 走 `http://devi-litellm:4000`。若你改用其它模型名，请同步修改各 `ANTHROPIC_*_MODEL` 与 `litellm_config.yaml`。
-
 **交互 CLI 秒退时排查：**
 
-- **先看宿主机内核**：CLI 运行时是 Bun，Linux 宿主机内核需 **>= 5.1**，建议 **>= 5.6**。例如 CentOS 7 默认 `3.10.x` 内核即使 `docker run -it`、网络、`.env` 全部正确，CLI 也可能直接退出；这种情况需要升级宿主机内核或将 CLI 放到更新的 Linux 主机运行。LiteLLM 不受此限制。
-- **不要用** `docker run ... | tee`：管道会让 `stdout` 不是 TTY，应用会走无头模式并很快退出，看起来像「秒退」。
-- **Windows Git Bash / mintty**：即使用了 `-it`，也可能没有把真实 TTY 传进容器。若看到 `CLI mode requires an interactive TTY`，请改用 `winpty docker run -it ...`，或直接在 PowerShell / Windows Terminal 里运行同一条命令。
-- **`preload.ts` 与 `CALLER_DIR`**：若 `.env` 里写了 `CALLER_DIR` 且指向宿主机路径，在容器里 `chdir` 会失败或跳到错误目录。双容器 CLI 建议在 `.env` 中**删除或注释 `CALLER_DIR`**，由入口脚本与 `bin/claude-haha` 自动设置。
-- 入口在 `DEVI_CLI_ONLY=1` 时已改为 **`exec /app/bin/claude-haha`**（与本地 `./bin/claude-haha` 一致），请**重新构建镜像**后再试。
-- **Windows 构建 Linux 镜像时行尾**：`docker/entrypoint.sh` 与 `bin/claude-haha` 必须是 LF。仓库已通过 `.gitattributes` 约束；若你在旧工作区构建过镜像，请重新 checkout / rebuild，避免 CRLF 被打进镜像。
+- **先看宿主机内核**：CLI 依赖 Bun，Linux 宿主机内核建议 **>= 5.6**（最低 **>= 5.1**）。过旧内核上 LiteLLM 仍可跑，CLI 可能直接退出。
+- **`docker exec` 必须带 `-t`**：需要交互 TTY 时使用 `docker exec -it`，否则 Ink 界面可能秒退。
+- **不要用** `docker exec ... | tee`：管道会导致 stdout 非 TTY，易走无头逻辑并快速退出。
+- **Windows Git Bash / mintty**：若 TTY 异常，可改用 `winpty docker exec -it ...` 或在 PowerShell / Windows Terminal 中执行。
+- **`preload.ts` 与 `CALLER_DIR`**：若 `.env` 含仅宿主机有效的 `CALLER_DIR`，在容器内会 `chdir` 失败；建议在用于 Docker 的 `.env` 中删除或注释 **`CALLER_DIR`**。
+- **Windows 构建 Linux 镜像时行尾**：`docker/entrypoint.sh` 与 `bin/claude-haha` 须为 LF，见 `.gitattributes`。
 
-6) Windows Git Bash 挂载路径异常时，可加：
+5) Windows Git Bash 挂载路径异常时，可加：
 
 ```bash
 MSYS_NO_PATHCONV=1 docker run ...
 ```
 
-7) **单容器**（LiteLLM 与 CLI 同进程空间）时 `.env` 中请使用：
+6) 与 LiteLLM 同容器跑 CLI 时，`.env` 中请使用：
 
 ```env
-ANTHROPIC_BASE_URL=http://localhost:4000
+ANTHROPIC_BASE_URL=http://127.0.0.1:4000
 ```
 
 
@@ -186,6 +163,7 @@ ANTHROPIC_BASE_URL=http://localhost:4000
 
 | 文档 | 说明 |
 |------|------|
+| [内网 Docker 镜像部署](docs/guide/docker-offline-deploy.md) | 导入 tar、配置与单容器 / 双容器运行清单 |
 | [环境变量](docs/guide/env-vars.md) | 完整环境变量参考和配置方式 |
 | [第三方模型](docs/guide/third-party-models.md) | 接入 OpenAI / DeepSeek / Ollama 等非 Anthropic 模型 |
 | [Computer Use](docs/features/computer-use.md) | 桌面控制功能（截屏、鼠标、键盘） |
